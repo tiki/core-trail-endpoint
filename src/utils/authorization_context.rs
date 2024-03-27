@@ -12,7 +12,7 @@ use std::error::Error;
 pub struct AuthorizationContext {
     namespace: Option<String>,
     owner: Owner,
-    scopes: Vec<String>,
+    scopes: Option<String>,
 }
 
 impl AuthorizationContext {
@@ -26,14 +26,7 @@ impl AuthorizationContext {
             .get("namespace")
             .map_or(None, serde_json::Value::as_str);
         let id = fields.get("id").map_or(None, serde_json::Value::as_str);
-        let scopes = fields
-            .get("scopes")
-            .unwrap_or(&serde_json::Value::from(Vec::<String>::new()))
-            .as_array()
-            .unwrap_or(&vec![])
-            .iter()
-            .map(|s| s.as_str().unwrap_or("").to_string())
-            .collect::<Vec<String>>();
+        let scopes = fields.get("scopes").map_or(None, serde_json::Value::as_str);
         let owner = match id {
             Some(id) => {
                 let split = id.split(":").collect::<Vec<&str>>();
@@ -46,7 +39,7 @@ impl AuthorizationContext {
         Ok(Self {
             namespace: namespace.map(str::to_string),
             owner,
-            scopes,
+            scopes: scopes.map(str::to_string),
         })
     }
 
@@ -58,7 +51,7 @@ impl AuthorizationContext {
         &self.owner
     }
 
-    pub fn scopes(&self) -> &Vec<String> {
+    pub fn scopes(&self) -> &Option<String> {
         &self.scopes
     }
 }

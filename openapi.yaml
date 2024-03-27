@@ -1,0 +1,49 @@
+openapi: 3.0.1
+info:
+  title: TIKI Trail API
+  description: TIKI's REST API for trail records.
+  license:
+    name: MIT
+    url: https://github.com/tiki/core-trail-endpoint/blob/main/LICENSE
+  version: 1.0.0
+servers:
+  - url: https://trail.mytiki.com/api/{version}
+    variables:
+      version:
+        default: latest
+
+security:
+  - CoreAwsAuthorizer: [ ]
+
+paths:
+  /{proxy+}:
+    x-amazon-apigateway-any-method:
+      parameters:
+        - name: "proxy"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses: { }
+      security:
+        - CoreAwsAuthorizer: [ ]
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        type: "aws_proxy"
+
+components:
+  securitySchemes:
+    CoreAwsAuthorizer:
+      type: "apiKey"
+      name: "Unused"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        authorizerUri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Authorizer}/invocations"
+        authorizerResultTtlInSeconds: 300
+        identitySource: "method.request.header.Authorization"
+        type: "request"

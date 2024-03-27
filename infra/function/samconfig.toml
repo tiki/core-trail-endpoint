@@ -2,9 +2,9 @@ version = 0.1
 
 [default.global.parameters]
 stack_name = "core-trail-src"
-s3_bucket = "mytiki-sam-deploy-us-east-1"
+s3_bucket = "com.mytiki.core.bucket"
 s3_prefix = "core/trail/src"
-region = "us-east-1"
+region = "us-east-2"
 
 [default.build.parameters]
 beta_features = true
@@ -16,6 +16,7 @@ beta_features = true
 confirm_changeset = false
 capabilities = [
     "CAPABILITY_IAM",
+    "CAPABILITY_NAMED_IAM",
     "CAPABILITY_AUTO_EXPAND"
 ]
 image_repositories = []

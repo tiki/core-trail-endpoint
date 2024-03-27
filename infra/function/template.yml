@@ -1,41 +1,87 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Ocean Trail Function
 
 Parameters:
-  Semver:
+  Name:
+    Description: The name of the project.
+    Type: String
+    Default: core-trail-endpoint
+  Authorizer:
+    Description: The arn of the Lambda function for JWT Request authorization (include :alias).
+    Type: String
+  Queue:
+    Description: The url of the writer queue to publish transactions to.
+    Type: String
+  Bucket:
+    Description: The bucket name to store transactions.
+    Type: String
+  Version:
     Description: Semantic version number
     Type: String
     Default: 0.0.1
 
 Resources:
+  Proxy:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Ref Name
+      StageName: latest
+      TracingEnabled: true
+      MethodSettings:
+        - LoggingLevel: ERROR
+          ResourcePath: "/*"
+          HttpMethod: "*"
+          DataTraceEnabled: true
+          MetricsEnabled: true
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ../../openapi.yaml
+
   Function:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ..
+      FunctionName: !Ref Name
+      Description: core-trail endpoint function
+      CodeUri: ../..
       Handler: bootstrap
       Runtime: provided.al2
       MemorySize: 1024
       Timeout: 900
+      Tracing: Active
+      VersionDescription: !Ref Version
       Architectures:
         - x86_64
-      FunctionUrlConfig:
-        AuthType: NONE
-        InvokeMode: BUFFERED
-        Cors:
-          AllowCredentials: True
-          AllowOrigins:
-            - "*"
-          AllowMethods:
-            - GET
-            - POST
-
-  Version:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !GetAtt Function.Arn
-      Description: !Ref Semver
-      ProvisionedConcurrencyConfig:
-        ProvisionedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          TIKI_BUCKET: !Ref Bucket
+          TIKI_QUEUE: !Ref Queue
+      Events:
+        ApiProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Proxy
+            Method: ANY
+            Path: /{proxy+}
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectVersion
+                - s3:ListBucket
+              Resource:
+                - !Sub arn:aws:s3:::${Bucket}
+                - !Sub arn:aws:s3:::${Bucket}/*
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: "*"
